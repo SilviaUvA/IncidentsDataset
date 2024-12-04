@@ -12,7 +12,7 @@ from architectures import (
     update_incidents_model_to_eval_mode,
     get_predictions_from_model
 )
-from parser import get_parser, get_postprocessed_args
+from parser_ import get_parser, get_postprocessed_args
 from utils import get_index_to_incident_mapping, get_index_to_place_mapping
 
 app = Flask(__name__)
@@ -58,9 +58,11 @@ def decode_base64(data, altchars=b'+/'):
 # Endpoint to get the prediction.
 @app.route('/prediction', methods=["POST"])
 def prediction():
-    s = request.form.get('base64').replace(" ", "+")
-    imgdata = base64.b64decode(s)
-    im = Image.open(BytesIO(imgdata)).convert("RGB")
+    # s = request.form.get('base64').replace(" ", "+")
+    # imgdata = base64.b64decode(s)
+    # im = Image.open(BytesIO(imgdata)).convert("RGB")
+    imgdata = request.files['image']
+    im = Image.open(imgdata).convert("RGB")
     image = inference_loader(im)
     batch_input = image[None]  # add batch dim
 

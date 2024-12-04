@@ -22,7 +22,7 @@ cudnn.benchmark = True
 from metrics import AverageMeter, accuracy, validate
 import architectures as architectures
 from loss import get_loss
-from parser import get_parser, get_postprocessed_args
+from parser_ import get_parser, get_postprocessed_args
 from dataset import get_dataset
 from utils import save_checkpoint
 

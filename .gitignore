@@ -130,3 +130,6 @@ dmypy.json
 
 # no job files
 *.sh
+*.out
+download_data.py
+data/
