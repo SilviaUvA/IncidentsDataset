@@ -5,9 +5,10 @@ protobuf==3.20.3
 opencv-python>=4.4
 torch
 torchvision
-matplotlib==3.3.1
-scikit-image==0.17.2
+matplotlib
+scikit-image
 configargparse
 googledrivedownloader
-requests==2.24.0
+requests
 p_tqdm==1.3.3
+urllib3
