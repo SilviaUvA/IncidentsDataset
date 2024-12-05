@@ -129,7 +129,9 @@ dmypy.json
 .pyre/
 
 # no job files
-*.sh
+# *.sh
 *.out
-download_data.py
+# download_data.py
 data/
+scripts/
+preprocessing/
