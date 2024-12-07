@@ -14,7 +14,7 @@ from dante_metrics import AverageMeter, compute_ap_for_top1
 import numpy as np
 from sklearn.metrics import average_precision_score
 from sklearn.preprocessing import label_binarize
-from dante_utils import eval, eval_uncertainty, copy_csv, add_samples_csv, remove_samples_csv
+from dante_utils import eval, eval_uncertainty, copy_csv, add_samples_csv, remove_samples_csv, pick_random_samples
 import csv
 
 # Suppress the specific UserWarning
@@ -35,8 +35,8 @@ def main():
     base_train_labelled = "data/active_base_labeled.csv"
     base_train_unlabelled = "data/active_base_unlabeled.csv"
     root_dir = "data/eccv_val_images"
-    model_save_dir = "models/active_select/"
-    result_folder = "results/active_select/"
+    model_save_dir = "models/active_random/"
+    result_folder = "results/active_random/"
     eval_csv_file = "data/active_eval.csv"
 
     # Use these temporary csv's files to keep track of the labeled or unlabeld data
@@ -154,7 +154,8 @@ def main():
         print(f"Model saved to {checkpoint_path}")
 
         # Evaluate uncertainty on unlabeled data
-        idx_new_samples = eval_uncertainty(model, unlabeled_loader, active_temp_unlabeled, num_new_samples)
+        # Select num_new_samples random samples
+        idx_new_samples = pick_random_samples(active_temp_unlabeled, num_new_samples)
 
         #TODO TESTING
         # Open the CSV file and count lines

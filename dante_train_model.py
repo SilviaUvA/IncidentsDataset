@@ -34,6 +34,7 @@ def main():
     train_csv_file = "data/filtered_labels_val_copy.csv"
     root_dir = "data/eccv_val_images"
     model_save_dir = "models/train_full/"
+    result_folder = "results/train_full/"
     eval_csv_file = "data/test_eval_val.csv"
 
     # Define data transforms
@@ -128,11 +129,10 @@ def main():
 
     # Save stats
     mean_ap_per_epoch_np = np.array(mean_ap_per_epoch)
-    np.save("results/train_full/mean_ap_per_epoch", mean_ap_per_epoch_np)
+    np.save(f"{result_folder}mean_ap_per_epoch", mean_ap_per_epoch_np)
 
     class_ap_per_epoch_np = np.array(class_ap_per_epoch)
-    print(class_ap_per_epoch_np.shape)
-    np.save("results/train_full/class_ap_per_epoch", class_ap_per_epoch_np)
+    np.save(f"{result_folder}class_ap_per_epoch", class_ap_per_epoch_np)
 
 if __name__ == "__main__":
     main()

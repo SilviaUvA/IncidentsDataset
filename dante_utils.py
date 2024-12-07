@@ -16,6 +16,7 @@ from sklearn.preprocessing import label_binarize
 # Dataset class (use the previously defined LargeImageDataset)
 from dante_dataset import LargeImageDataset  
 import csv
+import random
 
 # Suppress the specific UserWarning
 warnings.filterwarnings(
@@ -170,3 +171,11 @@ def remove_samples_csv(idx_new_samples, active_temp_unlabeled):
         # Write all the lines to the new file
         writer.writerow(new_header)
         writer.writerows(new_lines)
+
+
+def pick_random_samples(active_temp_unlabeled, num_new_samples):
+    df = pd.read_csv(active_temp_unlabeled)
+    num_elements = len(df)
+    random_indices = random.sample(range(num_elements), num_new_samples)
+    
+    return random_indices
