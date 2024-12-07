@@ -37,6 +37,7 @@ def is_image_file(filename):
 
 
 def image_loader(filename):
+    print("[DEBUG] LOADING IMAGE: ", filename) #TODO
     with open(filename, 'rb') as f:
         image = Image.open(f).convert('RGB')
     return image
@@ -61,16 +62,31 @@ def get_vectors(data, to_index_mapping, vector_len):
     """
     vector = np.zeros(vector_len)
     weight_vector = np.zeros(vector_len)
+
+    binary_vector = np.zeros(2)
+    binary_weight_vector = np.ones(2)
+    # print("[DEBUG ]DATA DICT: ", data) #TODO
+    # print("[DEBUG ]INDEX MAPPING: ", to_index_mapping) #TODO, see if no incident is at end
+
     for key, value in data.items():
         index = to_index_mapping[key]
-        if value == 1:
+        if value == 1: #TODO should adjust here I think for binary case? 
             vector[index] = 1
+            binary_vector[0] = 1
             weight_vector = np.ones(vector_len)  # assume full information
         elif value == 0:  # TODO: fix this hack for now
             weight_vector[index] = 1
         else:
             raise ValueError("dict should be sparse, with just 1 and 0")
-    return vector, weight_vector
+    
+    if binary_vector.sum() == 0:
+        binary_vector[1] = 1
+
+    # print("[DEBUG] vector", vector)
+    # print("[DEBUG] weight_vector", weight_vector)
+    # print("[DEBUG] bin_vector", binary_vector)
+    # print("[DEBUG] bin_weight_vector", binary_weight_vector) #TODO
+    return vector, weight_vector, binary_vector, binary_weight_vector
 
 
 def get_split_dictionary(data):
@@ -122,7 +138,8 @@ class IncidentDataset(Dataset):
             use_all=False,
             pos_only=False,
             using_softmax=False,
-            use_multi_label=True):
+            use_multi_label=True,
+            binary=False):
 
         self.images_path = images_path
         self.use_all = use_all
@@ -132,6 +149,7 @@ class IncidentDataset(Dataset):
         self.no_incident_label_items = []  # items without a incident label
 
         self.no_incidents = defaultdict(list)
+        self.binary = binary
 
         print("adding incident images")
         for filename, original_data in tqdm(incidents_images.items()):
@@ -147,14 +165,14 @@ class IncidentDataset(Dataset):
 
                 if using_softmax:
                     # the +1 to len accounts for "no place" and "no incident"
-                    place_vector, place_weight_vector = get_vectors(
+                    place_vector, place_weight_vector, _, _ = get_vectors(
                         data["places"], place_to_index_mapping, len(place_to_index_mapping) + 1)
-                    incident_vector, incident_weight_vector = get_vectors(
+                    incident_vector, incident_weight_vector, binary_incident_vector, binary_incident_weight_vector = get_vectors(
                         data["incidents"], incident_to_index_mapping, len(incident_to_index_mapping) + 1)
                 else:
-                    place_vector, place_weight_vector = get_vectors(
+                    place_vector, place_weight_vector, _, _ = get_vectors(
                         data["places"], place_to_index_mapping, len(place_to_index_mapping))
-                    incident_vector, incident_weight_vector = get_vectors(
+                    incident_vector, incident_weight_vector, binary_incident_vector, binary_incident_weight_vector = get_vectors(
                         data["incidents"], incident_to_index_mapping, len(incident_to_index_mapping))
 
                 # TODO: need to add "no incident" to some...
@@ -168,6 +186,10 @@ class IncidentDataset(Dataset):
                     incident_vector = np.zeros(len(incident_weight_vector))
                     incident_weight_vector = np.ones(
                         len(incident_weight_vector))
+                
+                # print("[DEBUG] how has incident_vector changed? ", incident_vector) #TODO probably doesnt matter much bcs its original vector
+                #TODO but should change model's final layer according to num_incidents right?
+                #TODO probably easier to add args.binary and then change how architecture is loaded in.. with --activation softmax -> --binary should have 1 + 1
 
                 # choose which set to put them into
                 has_incident = False
@@ -176,8 +198,12 @@ class IncidentDataset(Dataset):
                         has_incident = True
                         break
 
-                item = (filename, place_vector, incident_vector,
-                        place_weight_vector, incident_weight_vector)
+                if not binary:
+                    item = (filename, place_vector, incident_vector,
+                            place_weight_vector, incident_weight_vector)
+                else:
+                    item = (filename, place_vector, binary_incident_vector,
+                            place_weight_vector, binary_incident_weight_vector)
 
                 if pos_only:
                     if has_incident:
@@ -204,7 +230,10 @@ class IncidentDataset(Dataset):
 
         my_item = list(self.all_data[index])
         image_name = my_item[0]
-        img = self.image_loader(os.path.join(self.images_path, image_name))
+        split_image_name = image_name.split("/") #TODO added so not everything is a folder
+        new_image_name = f"{split_image_name[0]}_{split_image_name[1]}" #TODO added so not everything is a folder
+        # img = self.image_loader(os.path.join(self.images_path, image_name))
+        img = self.image_loader(os.path.join(self.images_path, new_image_name)) #TODO added so not everything is a folder
         if self.transform is not None:
             img = self.transform(img)
         my_item[0] = img
@@ -283,7 +312,8 @@ def get_dataset(args,
         transform=transform,
         use_all=use_all,
         pos_only=pos_only,
-        using_softmax=using_softmax
+        using_softmax=using_softmax,
+        binary=args.binary
     )
 
     # TODO: avoid the double shuffling affect that currently exists

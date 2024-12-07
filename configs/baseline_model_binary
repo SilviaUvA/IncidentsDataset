@@ -1,0 +1,9 @@
+batch_size=512
+lr=0.0001
+dataset=pos_and_neg
+activation=softmax
+epochs=40
+arch=resnet18
+dataset_train=data/eccv_val_clean_clean.json
+dataset_val=data/eccv_val_clean_clean.json
+dataset_test=data/eccv_val_clean_clean.json

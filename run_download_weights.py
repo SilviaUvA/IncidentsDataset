@@ -4,7 +4,7 @@ from google_drive_downloader import GoogleDriveDownloader as gdd
 
 file_id_to_filename = {
     # # 
-    # "1HCkYHzXV-nGjRy3iehrr6y90COgG67Jh": "resnet18_places365.pth.tar",
+    "1HCkYHzXV-nGjRy3iehrr6y90COgG67Jh": "resnet18_places365.pth.tar",
     "1NZHVWK9T-n6mjpAIjrIRtILRV2KcJAlP": "resnet50_places365.pth.tar",
     # #
     "1tEL6rmwftP5KBVsgIXmmoX_NKXRh58iG": "multi_label_final_model_trunk.pth.tar",

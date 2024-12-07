@@ -54,7 +54,7 @@ def get_parser():
                         default="data/eccv_test.json")
 
     parser.add_argument('--num_gpus',
-                        default=4,
+                        default=1,
                         type=int,
                         help='Number of gpus to use.')
     parser.add_argument('-b',
@@ -80,9 +80,10 @@ def get_parser():
                         default='resnet18',
                         choices=CHOICES_ARCHITECTURES,
                         help='Which model architecture to use.')
-    parser.add_argument('--ignore_places_during_training',
-                        default="False",
-                        type=str)
+    parser.add_argument('--ignore_places', #TODO renamed to completely ignore places model
+                        # default="False",
+                        action="store_true")
+                        # type=bool)
     parser.add_argument('--percent_of_training_set',
                         default=100,
                         type=int)
@@ -137,6 +138,8 @@ def get_parser():
                         default=1024,
                         type=int,
                         help='output dimension of network')
+    parser.add_argument('--seed', default=42, type=int, help="random seed")
+    parser.add_argument('--binary', action='store_true', help="Do binary incident/no incident classification")
     return parser
 
 

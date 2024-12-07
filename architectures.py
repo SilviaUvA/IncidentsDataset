@@ -107,10 +107,13 @@ def get_trunk_model(args):
 
 
 def get_incident_layer(args):
-    if args.activation == "softmax":
-        return nn.Linear(args.fc_dim, args.num_incidents + 1)
-    elif args.activation == "sigmoid":
-        return nn.Linear(args.fc_dim, args.num_incidents)
+    if args.binary:
+        return nn.Linear(args.fc_dim, 2)
+    else:
+        if args.activation == "softmax":
+            return nn.Linear(args.fc_dim, args.num_incidents + 1)
+        elif args.activation == "sigmoid":
+            return nn.Linear(args.fc_dim, args.num_incidents)
 
 
 def get_place_layer(args):
@@ -160,19 +163,28 @@ def update_incidents_model_with_checkpoint(incidents_model, args):
     
     best_str = "_best" if args.mode == "test" else ""
 
-    trunk_resume = os.path.join(
-        args.checkpoint_path, "trunk{}.pth.tar".format(best_str))
-    place_resume = os.path.join(
-        args.checkpoint_path, "place{}.pth.tar".format(best_str))
-    incident_resume = os.path.join(
-        args.checkpoint_path, "incident{}.pth.tar".format(best_str))
+    # trunk_resume = os.path.join(
+    #     args.checkpoint_path, "trunk{}.pth.tar".format(best_str))
+    # place_resume = os.path.join(
+    #     args.checkpoint_path, "place{}.pth.tar".format(best_str))
+    # incident_resume = os.path.join(
+    #     args.checkpoint_path, "incident{}.pth.tar".format(best_str))
+
+    trunk_resume = os.path.join(args.checkpoint_path, f"{config_name}_trunk.pth.tar") #TODO changed it to this
+    place_resume = os.path.join(args.checkpoint_path, f"{config_name}_place.pth.tar") #TODO changed it to this
+    incident_resume = os.path.join(args.checkpoint_path, f"{config_name}_incident.pth.tar") #TODO changed it to this
 
     # trunk_resume = "/data/vision/torralba/scratch/ethanweber/DamageAssessment/external/IncidentsDataset/pretrained_weights/eccv_final_model_trunk.pth.tar"
     # place_resume = "/data/vision/torralba/scratch/ethanweber/DamageAssessment/external/IncidentsDataset/pretrained_weights/eccv_final_model_place.pth.tar"
     # incident_resume = "/data/vision/torralba/scratch/ethanweber/DamageAssessment/external/IncidentsDataset/pretrained_weights/eccv_final_model_incident.pth.tar"
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    for (path, net) in [(trunk_resume, trunk_model), (place_resume, place_layer), (incident_resume, incident_layer)]:
+
+    loop_models = [(trunk_resume, trunk_model), (incident_resume, incident_layer)]
+    if not args.ignore_places:
+        loop_models.append((place_resume, place_layer))
+
+    for (path, net) in loop_models:
         if os.path.isfile(path):
             checkpoint = torch.load(path, map_location=device)
             args.start_epoch = checkpoint['epoch']
@@ -186,6 +198,7 @@ def update_incidents_model_to_eval_mode(incidents_model):
     print("Switching to eval mode.")
     for m in incidents_model:
         # switch to evaluation mode
+        # if m is not None: #TODO added to prevent place_model to be set to eval
         m.eval()
 
 
@@ -213,18 +226,18 @@ def get_predictions_from_model(args,
     input = batch_input.to(device)
     output = trunk_model(input)
     incident_output = incident_layer(output)
-    place_output = place_layer(output)
+    place_output = place_layer(output) if not args.ignore_places else None
 
     if args.activation == "softmax":
         incident_output = F.softmax(incident_output, dim=1)
-        place_output = F.softmax(place_output, dim=1)
+        place_output = F.softmax(place_output, dim=1) if not args.ignore_places else None
     elif args.activation == "sigmoid":
         m = nn.Sigmoid()
         incident_output = m(incident_output)
-        place_output = m(place_output)
+        place_output = m(place_output) if not args.ignore_places else None
 
     incident_probs, incident_idx = incident_output.sort(1, True)
-    place_probs, place_idx = place_output.sort(1, True)
+    place_probs, place_idx = place_output.sort(1, True) if not args.ignore_places else None
 
     temp_inference_dict = {}
 
@@ -239,21 +252,25 @@ def get_predictions_from_model(args,
             else:
                 incidents.append("no incident")
 
-        places = []
-        for idx in place_idx[batch_idx].cpu().numpy()[:topk]:
-            if idx < len(index_to_place_mapping):
-                places.append(
-                    index_to_place_mapping[idx]
-                )
-            else:
-                places.append("no place")
+        if not args.ignore_places:
+            places = []
+            for idx in place_idx[batch_idx].cpu().numpy()[:topk]:
+                if idx < len(index_to_place_mapping):
+                    places.append(
+                        index_to_place_mapping[idx]
+                    )
+                else:
+                    places.append("no place")
 
         output = {
             "incidents": incidents,
-            "places": places,
-            "incident_probs": incident_probs[batch_idx].cpu().detach().numpy()[:topk],
-            "place_probs": place_probs[batch_idx].cpu().detach().numpy()[:topk]
+            "incident_probs": incident_probs[batch_idx].cpu().detach().numpy()[:topk]
         }
+
+        if not args.ignore_places:
+            output["places"] = places
+            output["place_probs"] = place_probs[batch_idx].cpu().detach().numpy()[:topk]
+
         image_path = image_paths[batch_idx]
         temp_inference_dict[image_path] = output
 
@@ -264,7 +281,7 @@ def get_predictions_from_model(args,
 
 
 def get_predictions_from_model_all(args, incidents_model, batch_input, image_paths, index_to_incident_mapping,
-                                   index_to_place_mapping, inference_dict, softmax=True):
+                                   index_to_place_mapping, inference_dict, softmax=True): #TODO ignore places for this func
     """
     Input:
     {
@@ -282,18 +299,18 @@ def get_predictions_from_model_all(args, incidents_model, batch_input, image_pat
     input = batch_input.to(device)
     output = trunk_model(input)
     incident_output = incident_layer(output)
-    place_output = place_layer(output)
+    place_output = place_layer(output) if not args.ignore_places else None
 
     if softmax:
         incident_output = F.softmax(incident_output, dim=1)
-        place_output = F.softmax(place_output, dim=1)
+        place_output = F.softmax(place_output, dim=1) if not args.ignore_places else None
     else:
         m = nn.Sigmoid()
         incident_output = m(incident_output)
-        place_output = m(place_output)
+        place_output = m(place_output) if not args.ignore_places else None
 
     incident_probs, incident_idx = incident_output.sort(1, True)
-    place_probs, place_idx = place_output.sort(1, True)
+    place_probs, place_idx = place_output.sort(1, True) if not args.ignore_places else None
 
     # batch_input[0] is the batch dimension (the # in the batch)
     for batch_idx in range(len(batch_input.numpy())):
@@ -306,21 +323,25 @@ def get_predictions_from_model_all(args, incidents_model, batch_input, image_pat
             else:
                 incidents.append("no incident")
 
-        places = []
-        for idx in place_idx[batch_idx].cpu().numpy():
-            if idx < len(index_to_place_mapping):
-                places.append(
-                    index_to_place_mapping[idx]
-                )
-            else:
-                places.append("no place")
+        if not args.ignore_places:
+            places = []
+            for idx in place_idx[batch_idx].cpu().numpy():
+                if idx < len(index_to_place_mapping):
+                    places.append(
+                        index_to_place_mapping[idx]
+                    )
+                else:
+                    places.append("no place")
 
         output = {
             "incidents": incidents,
-            "places": places,
             "incident_probs": incident_probs[batch_idx].cpu().detach().numpy(),
-            "place_probs": place_probs[batch_idx].cpu().detach().numpy()
         }
+
+        if not args.ignore_places:
+            output["places"] = places
+            output["place_probs"] = place_probs[batch_idx].cpu().detach().numpy()
+
         image_path = image_paths[batch_idx]
         inference_dict[image_path] = output
 

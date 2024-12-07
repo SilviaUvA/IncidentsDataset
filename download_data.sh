@@ -5,7 +5,7 @@
 #SBATCH --job-name=HCML
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=20:00:00
+#SBATCH --time=01:00:00
 #SBATCH --output=runDownloadData_%A.out
 #SBATCH --error=errorDownloadData_%A.out
 

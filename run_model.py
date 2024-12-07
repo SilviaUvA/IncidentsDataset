@@ -26,6 +26,18 @@ from parser_ import get_parser, get_postprocessed_args
 from dataset import get_dataset
 from utils import save_checkpoint
 
+import numpy as np
+import random
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+
+
+#TODO check which datapoints are used in json and their label in code for different settings !!!!
 def train(args, train_loader, all_models, optimizer, epoch):
     """
     Trains for one epoch of the train_loader dataset.
@@ -58,6 +70,10 @@ def train(args, train_loader, all_models, optimizer, epoch):
         weight_p_v = weight_p_v.cuda(non_blocking=True)
         weight_d_v = weight_d_v.cuda(non_blocking=True)
 
+        #TODO
+        # print("TRAINLOADER TARGET PLACES (IGNORE THO): ", target_p_v, weight_p_v)
+        # print("TRAINLOADER TARGET DISASTERS: ", target_d_v, weight_d_v)
+
         # input_v = torch.autograd.Variable(image_v)
         # target_p_v = torch.autograd.Variable(target_p_v)
         # target_d_v = torch.autograd.Variable(target_d_v)
@@ -66,7 +82,7 @@ def train(args, train_loader, all_models, optimizer, epoch):
 
         # compute output
         output = trunk_model(image_v)
-        place_output = place_layer(output)
+        place_output = place_layer(output) if not args.ignore_places else None
         incident_output = incident_layer(output)
 
         # get the loss according to parameters
@@ -81,12 +97,17 @@ def train(args, train_loader, all_models, optimizer, epoch):
         # measure accuracy and record loss
         incident_prec1, incident_prec5 = accuracy(incident_output.data, target_d_v, topk=1), \
                                          accuracy(incident_output.data, target_d_v, topk=5)
-        place_prec1, place_prec5 = accuracy(place_output.data, target_p_v, topk=1), \
-                                   accuracy(place_output.data, target_p_v, topk=5)
+        
+        if not args.ignore_places:
+            place_prec1, place_prec5 = accuracy(place_output.data, target_p_v, topk=1), \
+                                    accuracy(place_output.data, target_p_v, topk=5)
+            a_v_place_top1.update(place_prec1, input_data.size(0))
+            a_v_place_top5.update(place_prec5, input_data.size(0))        
+
         a_v_losses.update(loss.data, input_data.size(0))
-        a_v_place_top1.update(place_prec1, input_data.size(0))
+        # a_v_place_top1.update(place_prec1, input_data.size(0))
         a_v_incident_top1.update(incident_prec1, input_data.size(0))
-        a_v_place_top5.update(place_prec5, input_data.size(0))
+        # a_v_place_top5.update(place_prec5, input_data.size(0))
         a_v_incident_top5.update(incident_prec5, input_data.size(0))
 
         # compute gradient and do SGD step
@@ -99,30 +120,46 @@ def train(args, train_loader, all_models, optimizer, epoch):
         end_time = time.time()
 
         if batch_iteration % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {a_v_batch_time.val:.3f} ({a_v_batch_time.avg:.3f})\t'
-                  'Data {a_v_data_time.val:.3f} ({a_v_data_time.avg:.3f})\t'
-                  'Loss {a_v_losses.val:.4f} ({a_v_losses.avg:.4f})\t'
-                  'Incident Prec@1 {a_v_incident_top1.val:.3f} ({a_v_incident_top1.avg:.3f})\t'
-                  'Place Prec@1 {a_v_place_top1.val:.3f} ({a_v_place_top1.avg:.3f})\t'
-                  'Place Prec@5 {a_v_place_top5.val:.3f} ({a_v_place_top5.avg:.3f})\t'
-                  'Incident Prec@5 {a_v_incident_top5.val:.3f} ({a_v_incident_top5.avg:.3f})\t'.format(
-                epoch, batch_iteration,
-                len(train_loader),
-                a_v_batch_time=a_v_batch_time,
-                a_v_data_time=a_v_data_time,
-                a_v_losses=a_v_losses,
-                a_v_incident_top1=a_v_incident_top1,
-                a_v_place_top1=a_v_place_top1,
-                a_v_incident_top5=a_v_incident_top5,
-                a_v_place_top5=a_v_place_top5))
+            if not args.ignore_places:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                    'Time {a_v_batch_time.val:.3f} ({a_v_batch_time.avg:.3f})\t'
+                    'Data {a_v_data_time.val:.3f} ({a_v_data_time.avg:.3f})\t'
+                    'Loss {a_v_losses.val:.4f} ({a_v_losses.avg:.4f})\t'
+                    'Incident Prec@1 {a_v_incident_top1.val:.3f} ({a_v_incident_top1.avg:.3f})\t'
+                    'Place Prec@1 {a_v_place_top1.val:.3f} ({a_v_place_top1.avg:.3f})\t'
+                    'Place Prec@5 {a_v_place_top5.val:.3f} ({a_v_place_top5.avg:.3f})\t'
+                    'Incident Prec@5 {a_v_incident_top5.val:.3f} ({a_v_incident_top5.avg:.3f})\t'.format(
+                    epoch, batch_iteration,
+                    len(train_loader),
+                    a_v_batch_time=a_v_batch_time,
+                    a_v_data_time=a_v_data_time,
+                    a_v_losses=a_v_losses,
+                    a_v_incident_top1=a_v_incident_top1,
+                    a_v_place_top1=a_v_place_top1,
+                    a_v_incident_top5=a_v_incident_top5,
+                    a_v_place_top5=a_v_place_top5))
+            else:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                    'Time {a_v_batch_time.val:.3f} ({a_v_batch_time.avg:.3f})\t'
+                    'Data {a_v_data_time.val:.3f} ({a_v_data_time.avg:.3f})\t'
+                    'Loss {a_v_losses.val:.4f} ({a_v_losses.avg:.4f})\t'
+                    'Incident Prec@1 {a_v_incident_top1.val:.3f} ({a_v_incident_top1.avg:.3f})\t'
+                    'Incident Prec@5 {a_v_incident_top5.val:.3f} ({a_v_incident_top5.avg:.3f})\t'.format(
+                    epoch, batch_iteration,
+                    len(train_loader),
+                    a_v_batch_time=a_v_batch_time,
+                    a_v_data_time=a_v_data_time,
+                    a_v_losses=a_v_losses,
+                    a_v_incident_top1=a_v_incident_top1,
+                    a_v_incident_top5=a_v_incident_top5))
         # TODO: add more metrics here
         writer.add_scalar('Loss/train', a_v_losses.avg,
                           batch_iteration + epoch * len(train_loader))
-        writer.add_scalar('Accuracy/train_place_1', a_v_place_top1.avg,
-                          batch_iteration + epoch * len(train_loader))
-        writer.add_scalar('Accuracy/train_place_5', a_v_place_top5.avg,
-                          batch_iteration + epoch * len(train_loader))
+        if not args.ignore_places:
+            writer.add_scalar('Accuracy/train_place_1', a_v_place_top1.avg,
+                            batch_iteration + epoch * len(train_loader))
+            writer.add_scalar('Accuracy/train_place_5', a_v_place_top5.avg,
+                            batch_iteration + epoch * len(train_loader))
         writer.add_scalar('Accuracy/train_incident_1', a_v_incident_top1.avg,
                           batch_iteration + epoch * len(train_loader))
         writer.add_scalar('Accuracy/train_incident_5', a_v_incident_top5.avg,
@@ -143,29 +180,32 @@ def main():
     print("args: \n")
     pprint.pprint(args)
 
-    # create the model
-    print("creating model with feature trunk architecture: '{}'".format(args.arch))
+    # # create the model
+    # print("creating model with feature trunk architecture: '{}'".format(args.arch))
 
-    # the shared feature trunk model
-    trunk_model = architectures.get_trunk_model(args)
-    # the incident model
-    incident_layer = architectures.get_incident_layer(args)
-    # the place model
-    place_layer = architectures.get_place_layer(args)
+    # # the shared feature trunk model
+    # trunk_model = architectures.get_trunk_model(args)
+    # # the incident model
+    # incident_layer = architectures.get_incident_layer(args)
+    # # the place model
+    # place_layer = architectures.get_place_layer(args)
 
-    print("parallelizing models with {} gpus".format(args.num_gpus))
-    trunk_model = nn.DataParallel(
-        trunk_model,
-        device_ids=range(args.num_gpus)
-    ).cuda()
-    incident_layer = nn.DataParallel(
-        incident_layer,
-        device_ids=range(args.num_gpus)
-    ).cuda()
-    place_layer = nn.DataParallel(
-        place_layer,
-        device_ids=range(args.num_gpus)
-    ).cuda()
+    # print("parallelizing models with {} gpus".format(args.num_gpus))
+    # trunk_model = nn.DataParallel(
+    #     trunk_model,
+    #     device_ids=range(args.num_gpus)
+    # ).cuda()
+    # incident_layer = nn.DataParallel(
+    #     incident_layer,
+    #     device_ids=range(args.num_gpus)
+    # ).cuda()
+    # place_layer = nn.DataParallel(
+    #     place_layer,
+    #     device_ids=range(args.num_gpus)
+    # ).cuda()
+
+    set_seed(args.seed)
+    trunk_model, incident_layer, place_layer = architectures.get_incidents_model(args)
 
     if args.checkpoint_path:
         session_name = args.checkpoint_path
@@ -187,12 +227,20 @@ def main():
 
     # define the optimizer
     # https://pytorch.org/docs/stable/optim.html#per-parameter-options
+    params = [
+    {'params': trunk_model.parameters()},
+    {'params': incident_layer.parameters()}
+    ]
+    if not args.ignore_places:
+        params.append({'params': place_layer.parameters()})
+
     optimizer = torch.optim.Adam(
-        [
-            {'params': trunk_model.parameters()},
-            {'params': incident_layer.parameters()},
-            {'params': place_layer.parameters()}
-        ],
+        # [
+        #     {'params': trunk_model.parameters()},
+        #     {'params': incident_layer.parameters()},
+        #     {'params': place_layer.parameters()} if not args.ignore_places
+        # ], #TODO
+        params,
         lr=args.lr)
 
     all_models = (trunk_model, incident_layer, place_layer)
@@ -230,8 +278,10 @@ def main():
         is_best = mean_ap > best_mean_ap
         best_mean_ap = max(mean_ap, best_mean_ap)
         prefix2model = {"trunk": trunk_model,
-                        "incident": incident_layer,
-                        "place": place_layer}
+                        "incident": incident_layer}#,
+                        # "place": place_layer} #TODO
+        if not args.ignore_places:
+            prefix2model["place"] = place_layer
         # TODO: maybe save at interval, regardless of validation accuracy
         for prefix in prefix2model:
             state = {

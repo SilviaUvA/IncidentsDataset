@@ -35,8 +35,9 @@ def get_loss(args,
     elif args.activation == "sigmoid":
         m = nn.Sigmoid()
     incident_output = m(incident_output) # [B, 43]
-    place_output = m(place_output) # [B, 49]
-
+    # print("Incident output: ", incident_output) #TODO
+    # print("Incident target (is it binary?): ", incident_target) #TODO 
+    # print("Incident weight (what is this?): ", incident_weight) #TODO 
     criterion = nn.BCELoss(reduction='none')
     incident_loss = torch.sum(
         criterion(
@@ -49,13 +50,29 @@ def get_loss(args,
     # incident_loss = (incident_loss * multiplier).mean()
     incident_loss = incident_loss.mean()
 
-    place_loss = torch.sum(
+    # place_loss = torch.sum( #TODO commented all lines for place_loss
+    #     criterion(
+    #         place_output,
+    #         place_target.type(torch.FloatTensor).cuda(non_blocking=True)
+    #     ) * place_weight, dim=1)
+    # multiplier = torch.clamp(torch.sum(place_target, dim=1), min=1)
+    # place_loss = (place_loss * multiplier).mean()
+    # place_loss = place_loss.mean() #TODO commented this
+
+    if not args.ignore_places: #TODO added this and moved stuff here
+        place_output = m(place_output) # [B, 49]
+
+        place_loss = torch.sum(
         criterion(
             place_output,
             place_target.type(torch.FloatTensor).cuda(non_blocking=True)
         ) * place_weight, dim=1)
-    # multiplier = torch.clamp(torch.sum(place_target, dim=1), min=1)
-    # place_loss = (place_loss * multiplier).mean()
-    place_loss = place_loss.mean()
+
+        place_loss = place_loss.mean()
+    else:
+        # ignore place_loss and place_output
+        place_loss = 0
+        place_output = None
+
     loss = incident_loss + place_loss
     return loss, incident_output, place_output
