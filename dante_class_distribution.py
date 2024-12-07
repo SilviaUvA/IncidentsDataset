@@ -1,7 +1,7 @@
 import csv
 import numpy as np
 
-csv_file_path = 'data/labels_eccv_val.csv'
+csv_file_path = 'data/filtered_labels_val_copy.csv'
 
 label_dict = {}
 for i in range(44):
@@ -19,6 +19,5 @@ with open(csv_file_path, mode='r', newline='', encoding='utf-8') as csvfile:
         # Ensure the row has at least two columns
         if len(row) > 1:
             label_dict[int(row[1])] += 1
-
-            
+   
 print(label_dict)
