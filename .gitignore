@@ -130,3 +130,9 @@ dmypy.json
 
 # no job files
 *.sh
+
+
+# Dante edits
+*.jpg
+*.json
+*.zip
