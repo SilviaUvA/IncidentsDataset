@@ -37,7 +37,7 @@ def is_image_file(filename):
 
 
 def image_loader(filename):
-    print("[DEBUG] LOADING IMAGE: ", filename) #TODO
+    # print("[DEBUG] LOADING IMAGE: ", filename) #TODO
     with open(filename, 'rb') as f:
         image = Image.open(f).convert('RGB')
     return image
