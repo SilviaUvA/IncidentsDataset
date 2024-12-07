@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms, models
+from torchvision.models import resnet50, ResNet50_Weights
 from tqdm import tqdm  # For progress bars
 import os
 import pandas as pd
@@ -13,6 +14,7 @@ from dante_metrics import AverageMeter, compute_ap_for_top1
 import numpy as np
 from sklearn.metrics import average_precision_score
 from sklearn.preprocessing import label_binarize
+from dante_utils import eval
 
 # Suppress the specific UserWarning
 warnings.filterwarnings(
@@ -29,7 +31,7 @@ def main():
     args = parser.parse_args()
 
     # Paths
-    csv_file = "data/filtered_labels_val_copy.csv"
+    train_csv_file = "data/filtered_labels_val_copy.csv"
     root_dir = "data/eccv_val_images"
     model_save_dir = "models/train_full/"
     eval_csv_file = "data/test_eval_val.csv"
@@ -53,8 +55,8 @@ def main():
         ])
 
     # Create the dataset and DataLoader
-    dataset = LargeImageDataset(csv_file=csv_file, root_dir=root_dir, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=True, num_workers=4, pin_memory=True)
+    dataset = LargeImageDataset(csv_file=train_csv_file, root_dir=root_dir, transform=transform)
+    dataloader = DataLoader(dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
 
     # Use a ResNet model
     model = models.resnet18(pretrained=True)
@@ -70,7 +72,7 @@ def main():
 
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.005)
+    optimizer = optim.AdamW(model.parameters(), lr=0.0001)
 
     # Training parameters
     num_epochs = 10
@@ -84,13 +86,8 @@ def main():
         model.train()  # Set the model to training mode
         running_loss = 0.0
 
-        # Calculate the Average precision over the epoch
-        num_classes = 44
-        aps_cumulative = np.zeros(num_classes)          
-        num_samples_cumulative = np.zeros(num_classes)  # To accumulate number of samples seen for each class
-
         print(f"Epoch {epoch + 1}/{num_epochs}")
-        for images, labels in tqdm(dataloader, desc="Training Batches"):
+        for images, labels, idx in tqdm(dataloader, desc="Training Batches"):
             # Move data to GPU if available
             images = images.to(device)
             labels = labels.to(device)
@@ -107,29 +104,19 @@ def main():
             # Track the loss
             running_loss += loss.item()
 
-            # Convert labels to one-hot encoding
-            probs = torch.softmax(outputs, dim=1)
-
-            y_true_bin = label_binarize(labels.cpu().numpy(), classes=np.arange(num_classes))
-            y_pred_bin = probs.detach().cpu().numpy()
-
-            # For each class, compute the average precision and update cumulative values
-            for class_idx in range(num_classes):
-                ap = average_precision_score(y_true_bin[:, class_idx], y_pred_bin[:, class_idx])
-                aps_cumulative[class_idx] += ap
-                num_samples_cumulative[class_idx] += 1
-
         # Epoch loss
         epoch_loss = running_loss / len(dataloader)
         print(f"Loss: {epoch_loss:.4f}")
 
+        # Run Validation
+        print(f"Running evaluation on validation data for this epoch!")
+        mean_ap, per_class_ap = eval(model, eval_csv_file)
+
         # Epoch mAP
-        # Calculate the mean of all APs (mAP)
-        mean_ap = np.sum(aps_cumulative) / np.sum(num_samples_cumulative)
+        # Save mAP and per_class_AP 
         mean_ap_per_epoch.append(mean_ap)
-        per_class_ap = aps_cumulative / num_samples_cumulative
         class_ap_per_epoch.append(per_class_ap)
-        print(f"per class ap epoch: {per_class_ap}")
+        print(f"Per class AP: {per_class_ap}")
         print(f"Mean Average Precision (mAP): {mean_ap:.4f}")
 
         # Save the model for this epoch
