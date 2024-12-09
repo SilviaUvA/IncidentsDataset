@@ -1,10 +1,11 @@
+#CLEAN LABELS
 import csv
 import os
 from PIL import Image, UnidentifiedImageError
 
 # Paths to input and output CSV files
-input_csv_file = "data/labels_eccv_val.csv"
-output_csv_file = "data/cleaned_labels_eccv_val.csv"
+input_csv_file = "data/labels_eccv_train_more_low_classes.csv"
+output_csv_file = "data/cleaned_labels_eccv_train_more_low_classes.csv"
 
 # Directory containing the images
 root_dir = "data/eccv_val_images"

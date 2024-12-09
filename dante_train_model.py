@@ -31,11 +31,11 @@ def main():
     args = parser.parse_args()
 
     # Paths
-    train_csv_file = "data/filtered_labels_val_copy.csv"
+    train_csv_file = "data/perma_train_labels.csv"
     root_dir = "data/eccv_val_images"
     model_save_dir = "models/train_full/"
     result_folder = "results/train_full/"
-    eval_csv_file = "data/test_eval_val.csv"
+    eval_csv_file = "data/perma_eval_labels.csv"
 
     # Define data transforms
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],            
@@ -121,7 +121,7 @@ def main():
         print(f"Mean Average Precision (mAP): {mean_ap:.4f}")
 
         # Save the model for this epoch
-        checkpoint_path = os.path.join(model_save_dir, f"model_full_train_epoch_{epoch+1}.pth")
+        checkpoint_path = os.path.join(model_save_dir, f"model_full_train_epoch_{epoch+1}_mAP_{mean_ap:.4f}.pth")
         torch.save(model.state_dict(), checkpoint_path)
         print(f"Model saved to {checkpoint_path}")
 

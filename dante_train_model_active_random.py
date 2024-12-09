@@ -37,7 +37,8 @@ def main():
     root_dir = "data/eccv_val_images"
     model_save_dir = "models/active_random/"
     result_folder = "results/active_random/"
-    eval_csv_file = "data/active_eval.csv"
+    eval_csv_file = "data/perma_eval_labels.csv"
+    active_random_all_used_train_samples = "results/active_random/active_random_save_train_samples.csv"
 
     # Use these temporary csv's files to keep track of the labeled or unlabeld data
     # And iteratively increase them during the epoch based on top k (500) most uncertain samples
@@ -51,7 +52,7 @@ def main():
     copy_csv(base_train_unlabelled, active_temp_unlabeled)
 
     # Number of new active learning samples per epoch
-    num_new_samples = 500
+    num_new_samples = 1000
 
     # Define data transforms
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],            
@@ -102,15 +103,15 @@ def main():
             labeled_dataset = LargeImageDataset(csv_file=base_train_labelled, root_dir=root_dir, transform=transform)
             labeled_loader = DataLoader(labeled_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
             # Select the base unlabeled dataset at the start 
-            unlabeled_dataset = LargeImageDataset(csv_file=base_train_unlabelled, root_dir=root_dir, transform=transform)
-            unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
+            # unlabeled_dataset = LargeImageDataset(csv_file=base_train_unlabelled, root_dir=root_dir, transform=transform)
+            # unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
         else:
             # Select the dataset with added samples by active learning mechanism
             labeled_dataset = LargeImageDataset(csv_file=active_temp_labeled, root_dir=root_dir, transform=transform)
             labeled_loader = DataLoader(labeled_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
             # Select the base unlabeled dataset at the start 
-            unlabeled_dataset = LargeImageDataset(csv_file=active_temp_unlabeled, root_dir=root_dir, transform=transform)
-            unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
+            # unlabeled_dataset = LargeImageDataset(csv_file=active_temp_unlabeled, root_dir=root_dir, transform=transform)
+            # unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
 
         model.train()  # Set the model to training mode
         running_loss = 0.0
@@ -149,7 +150,7 @@ def main():
         print(f"Mean Average Precision (mAP): {mean_ap:.4f}")
 
         # Save the model for this epoch
-        checkpoint_path = os.path.join(model_save_dir, f"model_full_train_epoch_{epoch+1}.pth")
+        checkpoint_path = os.path.join(model_save_dir, f"model_active_random_epoch_{epoch+1}_mAP_{mean_ap:.4f}.pth")
         torch.save(model.state_dict(), checkpoint_path)
         print(f"Model saved to {checkpoint_path}")
 
@@ -195,6 +196,9 @@ def main():
 
     class_ap_per_epoch_np = np.array(class_ap_per_epoch)
     np.save(f"{result_folder}class_ap_per_epoch", class_ap_per_epoch_np)
+
+    # Save CSV file that has all data samples used during active training
+    copy_csv(active_temp_labeled, active_random_all_used_train_samples)
 
 if __name__ == "__main__":
     main()

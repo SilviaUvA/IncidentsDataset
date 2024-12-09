@@ -1,3 +1,4 @@
+# FILTER LABELS
 import csv
 import os
 import warnings
@@ -5,10 +6,13 @@ from PIL import Image, ImageFile, UnidentifiedImageError
 
 # Allow loading truncated images
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+# Treat warnings as exceptions
+warnings.simplefilter("error", UserWarning)
+
 
 # Paths to input and output CSV files
-input_csv_file = "data/labels_eccv_val.csv"
-output_csv_file = "data/cleaned_labels_eccv_val.csv"
+input_csv_file = "data/cleaned_labels_eccv_train.csv"
+# output_csv_file = "data/filtered_labels_train.csv"
 
 # Directory containing the images
 root_dir = "data/eccv_val_images"
@@ -43,13 +47,20 @@ with open(input_csv_file, 'r') as infile, open(output_csv_file, 'w', newline='')
         current_file = img_path  # Track the current file being processed
 
         try:
+            image = Image.open(img_path).convert("RGB")
+            image.load()
             # Attempt to open the image
             with Image.open(img_path) as img:
                 img.verify()  # Verify that the image is valid
-                image = Image.open(img_path).convert("RGB")
             csv_writer.writerow(row)  # Write valid row to the new CSV file
-            print(f"Image loaded successfully: {img_path}")
+            # print(f"Image loaded successfully: {img_path}")
+        except UserWarning as w:
+            print(f"Warning raised as exception: {w}")
+            continue
+        except Exception as e:
+            print(f"Error loading image: {e}")
+            continue
         except (UnidentifiedImageError, OSError, IOError) as e:
             # Skip writing to the new CSV and log the failed file
-            # print(f"Failed to load image: {img_path}, Error: {e}")
+            print(f"Failed to load image: {img_path}, Error: {e}")
             continue

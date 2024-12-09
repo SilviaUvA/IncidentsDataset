@@ -97,10 +97,36 @@ if not os.path.exists(csv_file_path):
 with open(download_json_file, "r") as fp:
     dataset = json.load(fp)
 
-    for image_name in tqdm(dataset.keys()):
+    pre_filtered_img_names = []
+
+    image_names = list(dataset.keys())[100000:]
+    for img in image_names:
+        label = dataset[img]['incidents'] 
+        for key, value in label.items():
+            if value == 1:
+                true_class = label_dict[key]
+
+                if true_class in needed_classes:
+                    pre_filtered_img_names.append(img)
+
+            break
+
+    print(len(pre_filtered_img_names))
+
+    for image_name in tqdm(pre_filtered_img_names):
         # print(image_name)
         # pprint.pprint(dataset[image_name])
         # print(dataset[image_name]['incidents'])
+
+        labels = dataset[image_name]["incidents"]
+        key, value = next(iter(labels.items()))
+        true_class = label_dict[key]
+        if needed_classes_counts[true_class] < 500:
+            needed_classes_counts[true_class] += 1
+            print(f"true class: {true_class}, count: {needed_classes_counts[true_class]}")
+        else:
+            continue
+
 
         # Try to open and save the image
         image_url = dataset[image_name]["url"]
@@ -129,7 +155,6 @@ with open(download_json_file, "r") as fp:
                 with open(csv_file_path, mode='a', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow([f"image{img_count}.jpg", 0])
-
         
             # Increment counter of saved images with 1 for proper saving.
             img_count += 1
