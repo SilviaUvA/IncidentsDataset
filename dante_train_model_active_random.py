@@ -32,13 +32,13 @@ def main():
     args = parser.parse_args()
 
     # Paths
-    base_train_labelled = "data/active_base_labeled.csv"
-    base_train_unlabelled = "data/active_base_unlabeled.csv"
+    base_train_labelled = "data/active_base_labeled_1000.csv"
+    base_train_unlabelled = "data/active_base_unlabeled_1000.csv"
     root_dir = "data/eccv_val_images"
-    model_save_dir = "models/active_random/"
-    result_folder = "results/active_random/"
+    model_save_dir = "models/active_random_1000_epoch20/"
+    result_folder = "results/active_random_1000_epoch20/"
     eval_csv_file = "data/perma_eval_labels.csv"
-    active_random_all_used_train_samples = "results/active_random/active_random_save_train_samples.csv"
+    active_random_all_used_train_samples = "results/active_random_1000_epoch20/active_random_save_train_samples.csv"
 
     # Use these temporary csv's files to keep track of the labeled or unlabeld data
     # And iteratively increase them during the epoch based on top k (500) most uncertain samples
@@ -52,7 +52,7 @@ def main():
     copy_csv(base_train_unlabelled, active_temp_unlabeled)
 
     # Number of new active learning samples per epoch
-    num_new_samples = 1000
+    num_new_samples = 20
 
     # Define data transforms
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],            
@@ -90,7 +90,7 @@ def main():
     optimizer = optim.AdamW(model.parameters(), lr=0.0001)
 
     # Training parameters
-    num_epochs = 10
+    num_epochs = 20
 
     # Track and trace training stats
     mean_ap_per_epoch = []
